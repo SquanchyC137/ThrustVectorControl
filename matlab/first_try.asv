@@ -1,0 +1,19 @@
+a = arduino;
+imu = mpu6050(a);
+interv = 1000;
+init_time = 0;
+x = 0;
+
+
+while(init_time<interv)
+    acc = readAngularVelocity(imu);
+    ax = acc(1);
+    ay = acc(2);
+    az = acc(3);
+    %plot(init_time, ax, "-", init_time, ay, "-", init_time, az, "-");
+    grid ON
+    init_time = init_time +1;
+    drawnow
+end
+
+
