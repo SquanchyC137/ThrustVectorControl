@@ -1,0 +1,160 @@
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include <ElegantOTA.h>
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <ESP32Servo.h>
+
+
+#include "globals.h"
+
+
+
+Servo servoX;
+Servo servoY;
+
+AsyncWebServer server(80);
+
+unsigned long ota_progress_millis = 0;
+
+
+void wifiSetup(){
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PW);
+  Serial.println("");
+
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(WIFI_SSID);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+
+void serverSetup(){
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Hi! This is ElegantOTA AsyncDemo.");
+  });
+
+  ElegantOTA.begin(&server);    // Start ElegantOTA
+  // ElegantOTA callbacks
+  ElegantOTA.onStart(onOTAStart);
+  ElegantOTA.onProgress(onOTAProgress);
+  ElegantOTA.onEnd(onOTAEnd);
+
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+
+void onOTAStart() {
+  // Log when OTA has started
+  Serial.println("OTA update started!");
+  // <Add your own code here>
+}
+
+
+void onOTAProgress(size_t current, size_t final) {
+  // Log every 1 second
+  if (millis() - ota_progress_millis > 1000) {
+    ota_progress_millis = millis();
+    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  }
+}
+
+
+void onOTAEnd(bool success) {
+  // Log when OTA has finished
+  if (success) {
+    Serial.println("OTA update finished successfully!");
+  } else {
+    Serial.println("There was an error during OTA update!");
+  }
+  // <Add your own code here>
+}
+
+
+void blinkFinish(){
+  pinMode(BLINK_PIN, OUTPUT);
+  for( int i = 0; i < 3; i++){
+    digitalWrite(BLINK_PIN, HIGH);
+    delay(500);
+    digitalWrite(BLINK_PIN, LOW);
+    delay(500);
+  }
+  delay(2000);
+}
+
+
+
+void servoSetup(){
+  servoX.attach(GPIO_pin_servoX);
+  servoY.attach(GPIO_pin_servoY);
+  
+  servoX.write(X_angle_init);
+  servoY.write(Y_angle_init);
+}
+
+
+
+
+// void servoLoop(){
+//   // for( int i = 0; i < 15; i++){
+//   //   servoY.write(i+Y_angle_init);
+//   //   delay(10);
+//   // }
+//   // delay(500);
+//   // for ( int j = 15; j > 0; j--){
+//   //   servoY.write(j+Y_angle_init);
+//   //   delay(10);
+//   // }
+//   // delay(500);
+
+//   // for( int k = 0; k < 15; k++){
+//   //   servoX.write(k+X_angle_init);
+//   //   delay(20);
+//   // }
+//   // delay(500);
+//   // for ( int l = 15; l > 0; l--){
+//   //   servoX.write(l+X_angle_init);
+//   //   delay(20);
+//   // }
+//   // delay(500);
+// }
+
+
+
+void setup(void) {
+  Serial.begin(115200);
+ 
+  wifiSetup();
+  serverSetup();
+  
+  servoSetup();
+
+  // everything set up
+  blinkFinish();
+}
+
+void loop(void) {
+  ElegantOTA.loop();
+
+  digitalWrite(BLINK_PIN, HIGH);
+  delay(200);
+  digitalWrite(BLINK_PIN, LOW);
+  delay(2000);
+}
+
+
+
+
+
+
+
+
