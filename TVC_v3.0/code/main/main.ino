@@ -31,6 +31,51 @@ float compFilter_fac = 0.98;
 float oldXangle, oldYangle = 0;
 float newXangle, newYangle = 0;
 
+class OrientationController{
+  private:
+    float ax, ay, az;
+    float gx, gy, gz;
+
+    float roll, pitch, yaw; // roll is
+    float target_roll = 0, target_pitch = 0, target_yaw = 0;
+
+  
+  public:
+    OrientationController(): ax(0), ay(0), az(0), gx(0), gy(0), gz(0),
+                             roll(0), pitch(0), yaw(0),
+                             target_roll(0), target_pitch(0), target_yaw(0){}
+
+  
+
+    void read_sensor(Adafruit_MPU6050 &mpu){
+      sensors_event_t accel, gyro;
+      mpu.getEvent(&accel, &gyro);
+
+      ax = accel.acceleration.x;
+      ay = accel.acceleration.y;
+      az = accel.acceleration.z;
+
+      gx = gyro.gyro.x;
+      gy = gyro.gyro.y;
+      gz = gyro.gyro.z;
+    }
+
+    // calculations 
+    void update() {
+
+      float accelRoll = ()
+      roll = (accelRoll * 0.02 + gx * 0.98 * deltaT);
+
+
+
+
+    }
+
+    float getRoll() { return roll; }
+    float getPitch() { return pitch; }
+    float getYaw() { return yaw; }
+};
+
 
 
 
@@ -123,79 +168,82 @@ void servoSetup(){
 }
 
 
-// void mpuSetup(){
-//   // pinMode(SLA_PIN, INPUT_PULLUP);
-//   // pinMode(SCL_PIN, INPUT_PULLUP);
-//   // pinMode(INT_PIN, INPUT);
+void mpuSetup(){
+  // pinMode(SLA_PIN, INPUT_PULLUP);
+  // pinMode(SCL_PIN, INPUT_PULLUP);
+  // pinMode(INT_PIN, INPUT);
 
-//   if(!mpu.begin()){
-//     Serial.println("MPU not found ");
-//     abort();
-//   }
+  if(!mpu.begin()){
+    Serial.println("MPU not found ");
+    abort();
+  }
 
-//   mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-//   mpu.setGyroRange(MPU6050_RANGE_500_G);
-//   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-// }
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu.setGyroRange(MPU6050_RANGE_500_G);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+}
 
-// void mpuLoop(void *parameter){
-//   static float accelX, accelY, accelZ;
-//   static float gyroX, gyroY, gyroZ;
+void mpuLoop(void *parameter){
+  static float accelX, accelY, accelZ;
+  static float gyroX, gyroY, gyroZ;
 
-//   static gyroXangle_sum, gyroYangle_sum = 0;
+  static gyroXangle_sum, gyroYangle_sum = 0;
 
-//   static unsigned long mpu_deltaT, servo_deltaT;
-//   static unsigned long mpu_timer_prev, mpu_timer_curr = 0;
-  
-  
+  static unsigned long mpu_deltaT, servo_deltaT;
+  static unsigned long mpu_timer_prev, mpu_timer_curr = 0;
+ 
+ 
 
-//   sensors_event_t a, g, t; // acceleration, gyro, and temperature
-//   mpu.getEvent(&a, &g, &t);
-
-
-//   //measuring time between each datapoint
-//   mpu_timer_curr = micros();
-//   mpu_deltaT = mpu_timer_curr - mpu_timer_prev;
-//   servo_deltaT += mpu_deltaT;
-//   mpu_timer_prev = mpu_timer_curr;
-
-//   accelX = a.acceleration.x;
-//   accelY = a.acceleration.y;
-//   accelZ = a.acceleration.z;
-
-//   gyroX = g.gyro.x;
-//   gyroY = g.gyro.y;
-//   gyroZ = g.gyro.z;
-
-//   temp = t.temperature;
+  sensors_event_t a, g, t; // acceleration, gyro, and temperature
+  mpu.getEvent(&a, &g, &t);
 
 
-//   //get filtered x-orientation / pitch
-//   gyroXangle = gyroX * mpu_deltaT;
-//   accelXangle = arctan(accelY / accelZ) * (180 / M_PI);
-//   newXangle = compFilter_fac * (oldXangle + gyroXangle) + (1 - compFilter_fac) * accelXangle;
-//   oldXangle += newXangle;
+  //measuring time between each datapoint
+  mpu_timer_curr = micros();
+  mpu_deltaT = mpu_timer_curr - mpu_timer_prev;
+  servo_deltaT += mpu_deltaT;
+  mpu_timer_prev = mpu_timer_curr;
 
-//   //get filtered y-orientation / roll
-//   gyroYangle = gyroY * mpu_deltaT;
-//   accelYangle = arctan(accelX / accelZ) * (180 / M_PI);
-//   newYangle = compFilter_fac * (oldYangle + gyroYangle) + (1 - compFilter_fac) * accelYangle;
-//   oldYangle = newYangle;
+  accelX = a.acceleration.x;
+  accelY = a.acceleration.y;
+  accelZ = a.acceleration.z;
 
-//   if (servo_deltaT > 20e3){
+  gyroX = g.gyro.x;
+  gyroY = g.gyro.y;
+  gyroZ = g.gyro.z;
 
-
-//     servo_deltaT = 0;
-//   }
+  temp = t.temperature;
 
 
-// }
+  //get filtered x-orientation / pitch
+  gyroXangle = gyroX * mpu_deltaT;
+  accelXangle = arctan(accelY / accelZ) * (180 / M_PI);
+  newXangle = compFilter_fac * (oldXangle + gyroXangle) + (1 - compFilter_fac) * accelXangle;
+  oldXangle += newXangle;
 
-// void servoCorrect(){
+  //get filtered y-orientation / roll
+  gyroYangle = gyroY * mpu_deltaT;
+  accelYangle = arctan(accelX / accelZ) * (180 / M_PI);
+  newYangle = compFilter_fac * (oldYangle + gyroYangle) + (1 - compFilter_fac) * accelYangle;
+  oldYangle = newYangle;
 
-// }
+  if (servo_deltaT > 20e3){
 
 
+    servo_deltaT = 0;
+  }
+
+
+}
+
+void servoCorrect(){
+
+}
+
+void servo_translation(){
+
+
+}
 
 void setup(void) {
   Serial.begin(115200);
