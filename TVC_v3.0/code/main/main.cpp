@@ -1,4 +1,4 @@
-#include <Wifi.h>
+#include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ElegantOTA.h>
 #include <freertos/FreeRTOS.h>
@@ -77,13 +77,13 @@ public:
 
 class WiFiManager{
 private:
-  static const char WIFI_SSID[] = "A1-D153417A";
-  static const char WIFI_PW[] = "FgRnfQhJKVJW7m";
+  const char* WIFI_SSID;
+  const char* WIFI_PW;
   AsyncWebServer server;
   unsigned long ota_progress_millis;
 
 public:
-  WiFiManager() : server(80), ota_progress_millis(0){}
+  WiFiManager() : server(80), ota_progress_millis(0), WIFI_SSID("A1-D153417A_EXT"), WIFI_PW("FgRnfQhJKVJW7m"){}
 
   void setupWiFi(){
     LEDIndicator::setup();
@@ -109,9 +109,6 @@ public:
     });
 
     ElegantOTA.begin(&server);
-    ElegantOTA.onStart(onOTAStart);
-    ElegantOTA.onProgress(onOTAProgress);
-    ElegantOTA.onEnd(onOTAEnd);
 
     server.begin();
     Serial.println("HTTP server started");
@@ -119,30 +116,6 @@ public:
 
   void loop(){
     ElegantOTA.loop();
-  }
-  
-  void onOTAStart(){
-    // Log when OTA has started
-    Serial.println("OTA update started!");
-    // <Add more code if needed>
-  }
-
-  void onOTAProgress(size_t current, size_t final){
-    // Log every 1 second
-    if(millis() - ota_progress_millis > 1000){
-      ota_progress_millis = millis();
-      Serial.printf("OTA PROGRESS CURRENT: %u bytes, Final: %u bytes\n", current, final);
-    }
-  }
-
-  void onOTAEnd(bool success){
-    // Log when OTA has finished
-    if(success){
-      Serial.println("OTA update finished successfully!");
-    }
-    else{
-      Serial.println("There was an error during OTA update!");
-    }
   }
 };
 
@@ -179,14 +152,13 @@ public:
                     0.0, 0.0, 0.0, // pitch, yaw, roll  // around x, around y, around z
                     0.0};          // times
     }
-  }
   
   void setup(){
     Wire.begin(SDA_PIN, SCL_PIN);
     if(!mpu.begin()){
       Serial.println("MPU6050 not found! -restart-");
       delay(2000);
-      ESP.restart();
+      ESP.restart(); // ??
     }
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu.setGyroRange(MPU6050_RANGE_500_DEG);
@@ -287,8 +259,8 @@ public:
                           vel_x[SAMPLES-1], vel_y[SAMPLES-1], vel_z[SAMPLES-1],
                           pos_x, pos_y, pos_z,
                           pitch, yaw, roll,
-                          times[SAMPLES];
-    }
+                          times[SAMPLES]
+    };
 
     if(first_loop){ first_loop = false; }
     return loopData;

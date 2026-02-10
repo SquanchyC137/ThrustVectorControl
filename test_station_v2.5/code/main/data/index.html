@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MPU6050 Live</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {background:#000;color:rgb(0, 255, 247);font-family:Arial;text-align:center;padding:20px;}
+    canvas {background:#111;border:2px solid rgb(0, 255, 247);border-radius:15px;max-width:95%;margin:20px auto;}
+    h1 {text-shadow:0 0 15px rgb(0, 255, 247);}
+  </style>
+</head>
+<body>
+  <h1>Big Beautiful Data</h1>
+  <canvas id="chart"></canvas>
+
+  <script>
+    const ws = new WebSocket('ws://' + location.hostname + '/ws');
+    const chart = new Chart(document.getElementById('chart'), {
+      type: 'line',
+      data: {datasets: [        {label:'AccX (g)', borderColor:'red',    data:[]},
+        {label:'AccY (g)', borderColor:'lime',   data:[]},
+        {label:'AccZ (g)', borderColor:'blue',   data:[]},
+        {label:'GyroX',    borderColor:'yellow', data:[]},
+        {label:'GyroY',    borderColor:'magenta',data:[]},
+        {label:'GyroZ',    borderColor:'cyan',   data:[]}
+      ]},
+      options: {animation:false, scales:{x:{display:false}}}
+    });
+
+    ws.onmessage = function(e) {
+      const d = JSON.parse(e.data);
+      const t = Date.now();
+      chart.data.datasets[0].data.push({x:t, y:d.ax});
+      chart.data.datasets[1].data.push({x:t, y:d.ay});
+      chart.data.datasets[2].data.push({x:t, y:d.az});
+      chart.data.datasets[3].data.push({x:t, y:d.gx});
+      chart.data.datasets[4].data.push({x:t, y:d.gy});
+      chart.data.datasets[5].data.push({x:t, y:d.gz});
+      if (chart.data.datasets[0].data.length > 250)
+        chart.data.datasets.forEach(ds => ds.data.shift());
+      chart.update('quiet');
+    };
+  </script>
+</body>
+</html>
