@@ -100,12 +100,30 @@ private:
   AsyncWebSocket &ws;
   AsyncWebServer &server;
 
+  // Statische IP Konfiguration
+  IPAddress local_IP;
+  IPAddress gateway;
+  IPAddress subnet;
+  IPAddress primaryDNS;   // Optional
+  IPAddress secondaryDNS; // Optional
+
 public:
   WiFiManager(AsyncWebSocket &socket, AsyncWebServer &webserver)
       : WIFI_SSID("A1-D153417A_EXT"), WIFI_PW("FgRnfQhJKVJW7m"), ws(socket),
-        server(webserver) {}
+        server(webserver),
+        local_IP(192, 168, 1, 200), // <--- Neue IP für den ESP32
+        gateway(192, 168, 1, 138),  // <--- Dein Router (laut Screenshot)
+        subnet(255, 255, 255, 0),
+        primaryDNS(8, 8, 8, 8),  // Optional: Google DNS
+        secondaryDNS(8, 8, 4, 4) // Optional: Google DNS
+  {}
 
   void setupWiFi() {
+    // Statische IP anwenden, bevor WiFi gestartet wird
+    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+      Serial.println("Static IP configuration failed!");
+    }
+
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PW);
     Serial.println("");
@@ -120,7 +138,7 @@ public:
     Serial.print("connected with ");
     Serial.println(WIFI_SSID);
     Serial.print("ip address: \n");
-    Serial.print(WiFi.localIP());
+    Serial.println(WiFi.localIP());
   }
 
   void setupServer() {
@@ -189,16 +207,17 @@ public:
 
     JsonDocument doc;
     doc["ax"] = a.acceleration.x; // / 9.81;
-    doc["ay"] = a.acceleration.y;// / 9.81;
+    doc["ay"] = a.acceleration.y; // / 9.81;
     doc["az"] = a.acceleration.z; // / 9.81;
     doc["gx"] = g.gyro.x;
     doc["gy"] = g.gyro.y;
     doc["gz"] = g.gyro.z;
+    doc["t"] = temp.temperature;
 
     String json;
     serializeJson(doc, json);
     ws.textAll(json);
-    Serial.println("Sende: " + json);
+    // Serial.println("Sende: " + json);
   }
 };
 
@@ -235,7 +254,7 @@ void rgb_blink() {
   pixel.setPixelColor(0, pixel.Color(0, 0, 255));
   pixel.show();
   delay(1000);
-  Serial.println("LED Blau");
+  Serial.println("LED Rot");
   pixel.setPixelColor(0, pixel.Color(255, 0, 0));
   pixel.show();
   delay(300);
@@ -243,6 +262,9 @@ void rgb_blink() {
   pixel.setPixelColor(0, pixel.Color(0, 0, 255));
   pixel.show();
   delay(1000);
+  Serial.println("LED Aus");
+  pixel.setPixelColor(0, pixel.Color(0, 0, 0));
+  pixel.show();
 }
 
 // ==================== SETUP ===============================
@@ -281,7 +303,7 @@ void setup() {
         auto &s = *static_cast<SensorData *>(p);
         for (;;) {
           s.acquireAndSendData();
-          vTaskDelay(pdMS_TO_TICKS(10)); // ← 10 ms delay
+          vTaskDelay(pdMS_TO_TICKS(100)); // ← xxx ms delay
         }
       },
       "Sensor", 4096, &SensorData_I1, 1, nullptr, 1);

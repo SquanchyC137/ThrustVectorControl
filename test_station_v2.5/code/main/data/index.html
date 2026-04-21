@@ -1,47 +1,276 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
+
 <head>
   <meta charset="utf-8">
-  <title>MPU6050 Live</title>
+  <title>Thrust Vector Control - Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body {background:#000;color:rgb(0, 255, 247);font-family:Arial;text-align:center;padding:20px;}
-    canvas {background:#111;border:2px solid rgb(0, 255, 247);border-radius:15px;max-width:95%;margin:20px auto;}
-    h1 {text-shadow:0 0 15px rgb(0, 255, 247);}
+    :root {
+      --primary: #00fff7;
+      --bg: #0a0b0e;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --text: #ffffff;
+      --acc-x: #ff4d4d;
+      --acc-y: #4dff4d;
+      --acc-z: #4d4dff;
+      --gyro: #ffcc00;
+      --gyro-y: #ff00ff;
+      --gyro-z: #00ffff;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      color: var(--primary);
+      text-shadow: 0 0 20px rgba(0, 255, 247, 0.4);
+      margin: 10px 0 20px 0;
+      font-weight: 300;
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .label {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    .chart-box {
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 15px;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+    }
+
+    .chart-title {
+      font-size: 0.8rem;
+      color: var(--primary);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      text-align: left;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 250px !important;
+    }
+
+    .status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 5px 12px;
+      border-radius: 15px;
+      font-size: 0.7rem;
+      background: rgba(255, 77, 77, 0.2);
+      color: #ff4d4d;
+      border: 1px solid rgba(255, 77, 77, 0.3);
+      z-index: 100;
+    }
+
+    .status.connected {
+      background: rgba(77, 255, 77, 0.2);
+      color: #4dff4d;
+      border: 1px solid rgba(77, 255, 77, 0.3);
+    }
   </style>
 </head>
+
 <body>
-  <h1>Big Beautiful Data</h1>
-  <canvas id="chart"></canvas>
+  <div id="status" class="status">Getrennt</div>
+  <h1>Telemetry Dashboard</h1>
+
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <div class="label">Acc X (g)</div>
+        <div id="ax" class="value" style="color: var(--acc-x)">0.00</div>
+      </div>
+      <div class="card">
+        <div class="label">Acc Y (g)</div>
+        <div id="ay" class="value" style="color: var(--acc-y)">0.00</div>
+      </div>
+      <div class="card">
+        <div class="label">Acc Z (g)</div>
+        <div id="az" class="value" style="color: var(--acc-z)">0.00</div>
+      </div>
+      <div class="card">
+        <div class="label">Gyro X</div>
+        <div id="gx" class="value" style="color: var(--gyro)">0.00</div>
+      </div>
+      <div class="card">
+        <div class="label">Gyro Y</div>
+        <div id="gy" class="value" style="color: var(--gyro-y)">0.00</div>
+      </div>
+      <div class="card">
+        <div class="label">Gyro Z</div>
+        <div id="gz" class="value" style="color: var(--gyro-z)">0.00</div>
+      </div>
+      <div class="card">
+        <div class="label">Temp (°C)</div>
+        <div id="t" class="value" style="color: #ffaa00">0.00</div>
+      </div>
+    </div>
+
+    <!-- Chart Acceleration -->
+    <div class="chart-box">
+      <div class="chart-title">Accelerometer (m/s²)</div>
+      <canvas id="chartAcc"></canvas>
+    </div>
+
+    <!-- Chart Gyroscope -->
+    <div class="chart-box">
+      <div class="chart-title">Gyroscope (deg/s)</div>
+      <canvas id="chartGyro"></canvas>
+    </div>
+  </div>
 
   <script>
-    const ws = new WebSocket('ws://' + location.hostname + '/ws');
-    const chart = new Chart(document.getElementById('chart'), {
-      type: 'line',
-      data: {datasets: [        {label:'AccX (g)', borderColor:'red',    data:[]},
-        {label:'AccY (g)', borderColor:'lime',   data:[]},
-        {label:'AccZ (g)', borderColor:'blue',   data:[]},
-        {label:'GyroX',    borderColor:'yellow', data:[]},
-        {label:'GyroY',    borderColor:'magenta',data:[]},
-        {label:'GyroZ',    borderColor:'cyan',   data:[]}
-      ]},
-      options: {animation:false, scales:{x:{display:false}}}
-    });
-
-    ws.onmessage = function(e) {
-      const d = JSON.parse(e.data);
-      const t = Date.now();
-      chart.data.datasets[0].data.push({x:t, y:d.ax});
-      chart.data.datasets[1].data.push({x:t, y:d.ay});
-      chart.data.datasets[2].data.push({x:t, y:d.az});
-      chart.data.datasets[3].data.push({x:t, y:d.gx});
-      chart.data.datasets[4].data.push({x:t, y:d.gy});
-      chart.data.datasets[5].data.push({x:t, y:d.gz});
-      if (chart.data.datasets[0].data.length > 250)
-        chart.data.datasets.forEach(ds => ds.data.shift());
-      chart.update('quiet');
+    const statusEl = document.getElementById('status');
+    const MAX_POINTS = 100;
+    const vals = {
+      ax: document.getElementById('ax'), ay: document.getElementById('ay'), az: document.getElementById('az'),
+      gx: document.getElementById('gx'), gy: document.getElementById('gy'), gz: document.getElementById('gz'),
+      t: document.getElementById('t')
     };
+
+    // Helper for Chart Config
+    function createConfig(title, datasets) {
+      return {
+        type: 'line',
+        data: {
+          labels: Array(MAX_POINTS).fill(''),
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: { display: false },
+            y: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: 'white', boxWidth: 10, font: { size: 11 } } }
+          }
+        }
+      };
+    }
+
+    const chartAcc = new Chart(document.getElementById('chartAcc'), createConfig('Accel', [
+      { label: 'X', borderColor: '#ff4d4d', data: Array(MAX_POINTS).fill(0), borderWidth: 2, pointRadius: 0, tension: 0.1 },
+      { label: 'Y', borderColor: '#4dff4d', data: Array(MAX_POINTS).fill(0), borderWidth: 2, pointRadius: 0, tension: 0.1 },
+      { label: 'Z', borderColor: '#4d4dff', data: Array(MAX_POINTS).fill(0), borderWidth: 2, pointRadius: 0, tension: 0.1 }
+    ]));
+
+    const chartGyro = new Chart(document.getElementById('chartGyro'), createConfig('Gyro', [
+      { label: 'X', borderColor: '#ffcc00', data: Array(MAX_POINTS).fill(0), borderWidth: 2, pointRadius: 0, tension: 0.1 },
+      { label: 'Y', borderColor: '#ff00ff', data: Array(MAX_POINTS).fill(0), borderWidth: 2, pointRadius: 0, tension: 0.1 },
+      { label: 'Z', borderColor: '#00ffff', data: Array(MAX_POINTS).fill(0), borderWidth: 2, pointRadius: 0, tension: 0.1 }
+    ]));
+
+    let ws;
+    function connect() {
+      ws = new WebSocket('ws://' + location.hostname + '/ws');
+
+      ws.onopen = () => {
+        statusEl.innerText = 'Verbunden';
+        statusEl.classList.add('connected');
+      };
+
+      ws.onclose = () => {
+        statusEl.innerText = 'Getrennt - Reconnect...';
+        statusEl.classList.remove('connected');
+        setTimeout(connect, 2000);
+      };
+
+      ws.onmessage = function (e) {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.ax === undefined) return;
+
+          // Update Numbers
+          for (const key in vals) {
+            if (d[key] !== undefined) vals[key].innerText = d[key].toFixed(2);
+          }
+
+          // Update Acc Chart
+          chartAcc.data.labels.push('');
+          chartAcc.data.datasets[0].data.push(d.ax);
+          chartAcc.data.datasets[1].data.push(d.ay);
+          chartAcc.data.datasets[2].data.push(d.az);
+
+          // Update Gyro Chart
+          chartGyro.data.labels.push('');
+          chartGyro.data.datasets[0].data.push(d.gx);
+          chartGyro.data.datasets[1].data.push(d.gy);
+          chartGyro.data.datasets[2].data.push(d.gz);
+
+          // Shift both
+          if (chartAcc.data.labels.length > MAX_POINTS) {
+            chartAcc.data.labels.shift();
+            chartAcc.data.datasets.forEach(ds => ds.data.shift());
+            chartGyro.data.labels.shift();
+            chartGyro.data.datasets.forEach(ds => ds.data.shift());
+          }
+
+          chartAcc.update('quiet');
+          chartGyro.update('quiet');
+        } catch (err) {
+          console.error("WS Error:", err);
+        }
+      };
+    }
+
+    connect();
   </script>
 </body>
+
 </html>
