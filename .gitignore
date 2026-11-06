@@ -1,0 +1,11 @@
+resources/
+test_station_v1.0/
+test_station_v2.0/
+test_station_v2.5/
+
+TVC_v1.0/
+TVC_v2.0/
+TVC_v3.0/
+
+sync.ffs_db
+.vscode
