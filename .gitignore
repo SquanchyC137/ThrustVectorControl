@@ -1,7 +1,8 @@
 resources/
-test_station_v1.0/
-test_station_v2.0/
-test_station_v2.5/
+
+test_station_go/documentation/
+
+test_station_old/
 
 TVC_v1.0/
 TVC_v2.0/
